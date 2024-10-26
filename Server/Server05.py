@@ -1,8 +1,13 @@
-# Esercizio 5 - Chat Multipla
 import json
+import socket
+import threading
 
-# Funzione per convertire un oggetto in una stringa
-def oggetto_a_stringa(obj):
+def inviaJSON(client, messaggio):
+    messaggio = stringifyObject(messaggio)
+    client.send(messaggio.encode())
+
+# DA OGGETTO A STRINGA
+def stringifyObject(obj):
     try:
         # Converte l'oggetto in una stringa JSON
         stringa_json = json.dumps(obj)
@@ -11,8 +16,8 @@ def oggetto_a_stringa(obj):
         print(f"Errore nella conversione dell'oggetto in stringa: {e}")
         return None
 
-# Funzione per convertire una stringa in un oggetto
-def stringa_a_oggetto(stringa):
+# DA STRINGA A OGGETTO
+def parseObject(stringa):
     try:
         # Converte la stringa JSON in un oggetto Python
         obj = json.loads(stringa)
@@ -21,31 +26,19 @@ def stringa_a_oggetto(stringa):
         print(f"Errore nella conversione della stringa in oggetto: {e}")
         return None
 
-import socket
-import threading
-
 Host = socket.gethostbyname(socket.gethostname())
 Porta = 9999
-
 Indirizzo = (Host, Porta)
-Codifica = "utf-8"
-
-qta1024 = 1024
-qta2048 = 2048
-
-# Lista dei CLIENT
-clients, nomes = [], []
-
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Assegno l'Indirizzo del SERVER al Socket
 server.bind(Indirizzo)
 
-def riceviJson(conn):
-    obj = conn.recv(qta1024).decode(Codifica)
-    return stringa_a_oggetto(obj)
-    
-    
+# Lista dei CLIENT
+clients = []
+
+
+def riceviJson(client, qta = 1024):
+    return parseObject(client.recv(qta).decode("utf-8"))
+
 
 # Avvio il SERVER
 def avviaServer():
@@ -58,50 +51,37 @@ def avviaServer():
         
         # Accetto la Connessione
         #  ==> restituiosco al CLIENT una Nuova Connessione ad cui viene associtao
-        conn, addr = server.accept()
+        client, addr = server.accept()
         
-        # Recupero la "Quantità" di Bytes inviata dal Cliente
-        nome = riceviJson(conn)
-        """ nome = conn.recv(qta1024).decode(Codifica)
-        nome = stringa_a_oggetto(nome) """
+        nome = riceviJson(client)
+
         print(nome)
-        nomes.append(nome)
-        clients.append(conn)
-        
-        print(f"Nome : {nome}")
-        
-        # Invio un Messaggio in Broadcast per il Nuovo CLIENT
-        messaggioBroadcast(f"{nome} si è aggiunto alla CHAT !!!".encode(Codifica))
-        
-        conn.send("Connessione alla Chat evvenuta con Successo !!!".encode(Codifica))
-        
+        clients.append(client)
+
         # Avvio un Nuovo THREAD per la gestione del Singolo CLIENT
-        thread = threading.Thread(target=messaggioInArrivo, args=(conn, addr))
+        thread = threading.Thread(target=messaggioInArrivo, args=(client, addr, nome))
         thread.start()
         
-        print(f"Connessioni Attive [{threading.activeCount()-1}]")
+        print(f"Connessioni Attive {threading.active_count() - 1}")
         
         
 # Metodo per Gestire i Messaggi in Arrivo dal CLIENT
-def messaggioInArrivo(conn, addr):
+def messaggioInArrivo(client, addr, nome):
 
-    print(f"Nuova Connessione {addr}")
+    print(f"Si è connesso {nome['nickname']} : {nome['host']}")
     connesso = True
     
     while connesso:
+
         # Ricezione del Messaggio dal CLIENT
-        msgClient = conn.recv(qta1024)
-        print(msgClient)
+        msgClient = client.recv(1024)
+
         # Inoltro il Messaggio in Broadcast
-        messaggioBroadcast(msgClient)
+        # messaggioBroadcast(msgClient)
         
     # Chiudo la Connessione
-    conn.Close()
-        
-# Metodo Invio Messaggio in Broadcast
-def messaggioBroadcast(msgBytes):
-    for client in clients:
-        client.send(msgBytes)
+    client.close()
+
 
 # Richiamo l' Avvio del SERVER
 avviaServer()

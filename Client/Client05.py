@@ -1,8 +1,5 @@
-# Esercizio 5 - Chat Multipla
-
 import socket
 import threading
-
 import tkinter 
 from tkinter import *
 from tkinter import font
@@ -10,40 +7,48 @@ from tkinter import ttk
 
 import json
 
-# Funzione per convertire un oggetto in una stringa
-def oggetto_a_stringa(obj):
+# DA OGGETTO A STRINGA
+def stringifyObject(obj):
     try:
-        # Converte l'oggetto in una stringa JSON
         stringa_json = json.dumps(obj)
         return stringa_json
     except (TypeError, ValueError) as e:
         print(f"Errore nella conversione dell'oggetto in stringa: {e}")
         return None
 
-# Funzione per convertire una stringa in un oggetto
-def stringa_a_oggetto(stringa):
+def parseObject(stringa):
     try:
-        # Converte la stringa JSON in un oggetto Python
         obj = json.loads(stringa)
         return obj
     except (json.JSONDecodeError, TypeError) as e:
         print(f"Errore nella conversione della stringa in oggetto: {e}")
         return None
 
-Host = "172.27.128.1"
+def riceviJson(qta = 1024):
+    return parseObject(client.recv(qta).decode("utf-8"))
+
+def inviaJSON(messaggio):
+    client.send(stringifyObject(messaggio).encode())
+
+#Host = "172.27.128.1" MAXWELL PC LEO
+#Host = "192.168.178.24" PC LEO CASA
+Host = "192.168.178.24"
+Host = socket.gethostbyname(socket.gethostname())
 Porta = 9999
 
 Indirizzo = (Host, Porta)
-Codifica = "utf-8"
 
-qta1024 = 1024
-qta2048 = 2048
-
-# Creo il mio Nuovo Socket CLIENT
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(Indirizzo)
+    
+try:
+    # Prova a connettersi al server
+    client.connect(Indirizzo)
+except socket.error as e:
+    # Gestisce errori di connessione
+    print(f"Errore di connessione al server: {e}")
+    client.close()
 
-# Gestisco la GUI Client
+
 class clsGrafica:
     # Costruttore
     def __init__(self):
@@ -85,7 +90,6 @@ class clsGrafica:
         self.btnConferma.place(relx=0.4, rely=0.55)
         self.Form.mainloop()
         
-
     # Funzione per Inviare il Messaggio Tramite un Traed
     def sendMessaggio(self, msg):
         treadRcv = threading.Thread(target=self.receive)
@@ -94,17 +98,13 @@ class clsGrafica:
         treadSnd = threading.Thread(target=self.sendMsgToServer)
         treadSnd.start()
         
-    def inviaJSON(self, client, messaggio):
-        messaggio = oggetto_a_stringa(messaggio)
-        
-        client.send(messaggio.encode())
-        
 
     # Funzione per la Ricezione dei Messaggi dal SERVER
     def receive(self):
         while True:
             try:
-                msgServer = client.recv(qta1024).decode(Codifica)
+                msgServer = client.recv(1024).decode("utf-8")
+                msgServer = riceviJson(client)
                 print(msgServer)
                     
             except:        
@@ -116,10 +116,11 @@ class clsGrafica:
         nome = self.txtNome.get()
         
         msg = {
-            "nome" : nome,
-            "cod": 1
+            "nickname" : nome,
+            "host": socket.gethostbyname(socket.gethostname())
         }
-        self.inviaJSON(client, msg)
+
+        inviaJSON(msg)
 
 # Esegue la clsGrafica
 grafica = clsGrafica()
